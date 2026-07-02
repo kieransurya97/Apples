@@ -78,7 +78,7 @@ The project is split into three tiers of questions to test SQL skills of increas
 
 1. Find the number of stores in each country.
 
- '''sql
+ '''sql  
  select 
     country ,
     count(store_id)
