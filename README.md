@@ -86,6 +86,19 @@ from stores
 group by country
 order by 2 desc
 '''
+
+'''sql 
+select 
+      s.store_id,
+      st.store_name,
+      sum (s.quantity) as Total_unit_sold
+from sales as s
+join
+stores as st 
+on st.store_id = s.store_id
+group by 1,2
+order by 3 desc
+'''
    
 3. Calculate the total number of units sold by each store.
 4. Identify how many sales occurred in December 2023.
