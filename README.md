@@ -76,16 +76,17 @@ The project is split into three tiers of questions to test SQL skills of increas
 
 ### Easy to Medium (10 Questions)
 
-1. Find the number of stores in each country.
+### 1. Find the number of stores in each country.
 
- '''sql  
- select 
-    country ,
-    count(store_id)
-from stores
-group by country
-order by 2 desc
-'''
+```sql
+SELECT
+    country,
+    COUNT(store_id) AS total_stores
+FROM stores
+GROUP BY country
+ORDER BY total_stores DESC;
+```
+
 
 '''sql 
 select 
