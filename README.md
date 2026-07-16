@@ -3,7 +3,7 @@
 
 # ![Apple Logo](https://github.com/najirh/Apple-Retail-Sales-SQL-Project---Analyzing-Millions-of-Sales-Rows/blob/main/Apple_Changsha_RetailTeamMembers_09012021_big.jpg.slideshow-xlarge_2x.jpg) Apple Retail Sales SQL Project - Analyzing Millions of Sales Rows
 
-**Get the guided project/datasets here**: [Get the Project Datasets](https://topmate.io/zero_analyst/1237072)
+
 
 ## Project Overview
 
@@ -51,6 +51,27 @@ The project uses five main tables:
    - `claim_date`: Date the claim was made.
    - `sale_id`: References the sales table.
    - `repair_status`: Status of the warranty claim (e.g., Paid Repaired, Warranty Void).
+  
+
+## Query Performance Improvement
+
+Indexes were created on frequently filtered columns in the `sales` table.
+
+```sql
+CREATE INDEX idx_sales_product_id ON sales(product_id);
+CREATE INDEX idx_sales_store_id ON sales(store_id);
+CREATE INDEX idx_sales_sale_date ON sales(sale_date);
+```
+
+Example performance check:
+
+```sql
+EXPLAIN ANALYZE
+SELECT *
+FROM sales
+WHERE product_id = 'P-44';
+```
+
 
 ## Objectives
 
@@ -81,19 +102,122 @@ stores as st
 on st.store_id = s.store_id
 group by 1,2
 order by 3 desc
+``` 
+
+### 3. Identify how many sales occurred in December 2023.
+```sql
+SELECT
+    COUNT(sale_id) AS total_sales
+FROM sales
+WHERE sale_date >= DATE '2023-12-01'
+  AND sale_date < DATE '2024-01-01';
+```
+4. Determine how many stores have never had a warranty claim filed.
+```sql
+SELECT COUNT(*) AS stores_without_claims
+FROM stores AS st
+WHERE NOT EXISTS (
+    SELECT 1
+    FROM sales AS s
+    JOIN warranty AS w
+        ON w.sale_id = s.sale_id
+    WHERE s.store_id = st.store_id
+);
+```
+5. Calculate the percentage of warranty claims marked as "Warranty Void".
+```sql
+SELECT
+    ROUND(
+        100.0 * COUNT(*) FILTER (
+            WHERE repair_status = 'Warranty Void'
+        ) / NULLIF(COUNT(*), 0),
+        2
+    ) AS warranty_void_percentage
+FROM warranty;
 ```
    
-3. Calculate the total number of units sold by each store.
-4. Identify how many sales occurred in December 2023.
-5. Determine how many stores have never had a warranty claim filed.
-6. Calculate the percentage of warranty claims marked as "Warranty Void".
-7. Identify which store had the highest total units sold in the last year.
-8. Count the number of unique products sold in the last year.
-9. Find the average price of products in each category.
-10. How many warranty claims were filed in 2020?
-11. For each store, identify the best-selling day based on highest quantity sold.
+6. Identify which store had the highest total units sold in the last year.
+```sql
+SELECT
+    s.store_id,
+    st.store_name,
+    SUM(s.quantity) AS total_units_sold
+FROM sales AS s
+JOIN stores AS st
+    ON st.store_id = s.store_id
+WHERE s.sale_date >= (
+    SELECT MAX(sale_date) - INTERVAL '1 year'
+    FROM sales
+)
+GROUP BY s.store_id, st.store_name
+ORDER BY total_units_sold DESC
+LIMIT 1;
+```
+7. Count the number of unique products sold in the last year.
+```sql
+SELECT
+    COUNT(DISTINCT product_id) AS unique_products_sold
+FROM sales
+WHERE sale_date >= (
+    SELECT MAX(sale_date) - INTERVAL '1 year'
+    FROM sales
+);
+```
+
+8. Find the average price of products in each category.
+```sql
+SELECT
+    p.category_id,
+    c.category_name,
+    ROUND(AVG(p.price)::numeric, 2) AS average_price
+FROM products AS p
+JOIN category AS c
+    ON c.category_id = p.category_id
+GROUP BY p.category_id, c.category_name
+ORDER BY average_price DESC;
+```
+
+ 
+9. How many warranty claims were filed in 2020?
+```sql
+SELECT
+    COUNT(*) AS warranty_claims
+FROM warranty
+WHERE claim_date >= DATE '2020-01-01'
+  AND claim_date < DATE '2021-01-01';
+```
+10. For each store, identify the best-selling day based on highest quantity sold.
+```sql
+WITH daily_sales AS (
+    SELECT
+        store_id,
+        TRIM(TO_CHAR(sale_date, 'Day')) AS day_name,
+        SUM(quantity) AS total_units_sold
+    FROM sales
+    GROUP BY store_id, TRIM(TO_CHAR(sale_date, 'Day'))
+),
+ranked_days AS (
+    SELECT
+        store_id,
+        day_name,
+        total_units_sold,
+        RANK() OVER (
+            PARTITION BY store_id
+            ORDER BY total_units_sold DESC
+        ) AS sales_rank
+    FROM daily_sales
+)
+SELECT
+    store_id,
+    day_name,
+    total_units_sold
+FROM ranked_days
+WHERE sales_rank = 1
+ORDER BY store_id;
+```
 
 ### Medium to Hard (5 Questions)
+### The remaining SQL solutions are available in the project script:
 
 11. Identify the least selling product in each country for each year based on total units sold.
 12. Calculate how many warranty claims were filed within 180 days of a product sale.
